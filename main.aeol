@@ -1,0 +1,7 @@
+int a
+int b
+int r
+a := gets()
+r := 2
+b := add(a,r)
+print(b)

@@ -18,7 +18,7 @@ end
 
 # machine state
 class MachineState
-  attr_reader :dict, :queue, :bindlist
+  attr_reader :dict, :queue, :bindlist, :mutex
 
   def initialize(lines)
     @dict = {}
@@ -26,14 +26,22 @@ class MachineState
     @bindlist = []
     @lines = lines
     @funclist = {}
-    @jointhreads = []
+    @waiting = false
+    @mutex = Mutex.new
+
     register_funcs!
   end
 
-  def waiting
-    return false if @jointhreads.count.zero?
+  def set_waiting
+    @waiting = true
+  end
 
-    true
+  def set_not_waiting
+    @waiting = false
+  end
+
+  def waiting?
+    @waiting
   end
 
   def next_executable_index
@@ -261,7 +269,24 @@ module Intrinsics
     end
 
     def run
-      p @state.dict[@executable[:bindlist][0][:name]][:value]
+      puts @state.dict[@executable[:bindlist][0][:name]][:value]
+    end
+  end
+
+  class Gets
+    def initialize(state, executable)
+      @state = state
+      @executable = executable
+    end
+
+    def run
+      @state.set_waiting
+      t = Thread.new do
+        @state.dict[@executable[:bindlist][0][:name]][:value] = STDIN.gets
+        @state.dict[@executable[:bindlist][0][:name]][:ready] = true
+
+        @state.set_not_waiting
+      end
     end
   end
 end
@@ -293,7 +318,13 @@ state.run('_entry')
 
 loop do
   executable = state.pop_next_executable
-  if executable.nil? && !state.waiting
+  if executable.nil?
+    if state.waiting?
+      sleep 1
+      next
+    end
+
+
     raise "no next with #{state.queue.count}"
   end
 
