@@ -4,4 +4,7 @@ int r
 a := gets()
 r := 2
 b := add(a,r)
+int c
+c := 5
+print(c)
 print(b)
